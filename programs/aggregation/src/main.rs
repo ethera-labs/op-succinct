@@ -79,6 +79,7 @@ pub fn main() {
         l2PostRoot: last_boot_info.l2PostRoot,
         l1Head: agg_inputs.latest_l1_checkpoint_head,
         rollupConfigHash: last_boot_info.rollupConfigHash,
+        mailboxRoot: last_boot_info.mailboxRoot,
     };
 
     // Convert the range vkey to a B256.
@@ -90,6 +91,7 @@ pub fn main() {
         l2PostRoot: final_boot_info.l2PostRoot,
         l2BlockNumber: final_boot_info.l2BlockNumber,
         rollupConfigHash: final_boot_info.rollupConfigHash,
+        mailboxRoot: final_boot_info.mailboxRoot,
         multiBlockVKey: multi_block_vkey_b256,
         proverAddress: agg_inputs.prover_address,
     };

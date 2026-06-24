@@ -20,6 +20,7 @@ sol! {
         bytes32 l2PostRoot;
         uint64 l2BlockNumber;
         bytes32 rollupConfigHash;
+        bytes32 mailboxRoot;
         bytes32 multiBlockVKey;
         address proverAddress;
     }
