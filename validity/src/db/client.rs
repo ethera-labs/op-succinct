@@ -277,18 +277,17 @@ impl DriverDBClient {
         l1_chain_id: i64,
         l2_chain_id: i64,
     ) -> Result<Vec<OPSuccinctRequest>, Error> {
-        let requests = sqlx::query_as!(
-            OPSuccinctRequest,
+        let requests = sqlx::query_as::<_, OPSuccinctRequest>(
             "SELECT * FROM requests WHERE range_vkey_commitment = $1 AND rollup_config_hash = $2 AND status = $3 AND req_type = $4 AND start_block >= $5 AND end_block <= $6 AND l1_chain_id = $7 AND l2_chain_id = $8 ORDER BY start_block ASC",
-            &commitment.range_vkey_commitment[..],
-            &commitment.rollup_config_hash[..],
-            RequestStatus::Complete as i16,
-            RequestType::Range as i16,
-            start_block,
-            end_block,
-            l1_chain_id,
-            l2_chain_id,
         )
+        .bind(&commitment.range_vkey_commitment[..])
+        .bind(&commitment.rollup_config_hash[..])
+        .bind(RequestStatus::Complete as i16)
+        .bind(RequestType::Range as i16)
+        .bind(start_block)
+        .bind(end_block)
+        .bind(l1_chain_id)
+        .bind(l2_chain_id)
         .fetch_all(&self.pool)
         .await?;
         Ok(requests)
@@ -372,18 +371,17 @@ impl DriverDBClient {
         l1_chain_id: i64,
         l2_chain_id: i64,
     ) -> Result<Option<OPSuccinctRequest>, Error> {
-        let request = sqlx::query_as!(
-            OPSuccinctRequest,
+        let request = sqlx::query_as::<_, OPSuccinctRequest>(
             "SELECT * FROM requests WHERE range_vkey_commitment = $1 AND rollup_config_hash = $2 AND aggregation_vkey_hash = $3 AND status = $4 AND req_type = $5 AND start_block >= $6 AND l1_chain_id = $7 AND l2_chain_id = $8 ORDER BY start_block ASC LIMIT 1",
-            &commitment.range_vkey_commitment[..],
-            &commitment.rollup_config_hash[..],
-            &commitment.agg_vkey_hash[..],
-            RequestStatus::Unrequested as i16,
-            RequestType::Aggregation as i16,
-            latest_contract_l2_block,
-            l1_chain_id,
-            l2_chain_id,
         )
+        .bind(&commitment.range_vkey_commitment[..])
+        .bind(&commitment.rollup_config_hash[..])
+        .bind(&commitment.agg_vkey_hash[..])
+        .bind(RequestStatus::Unrequested as i16)
+        .bind(RequestType::Aggregation as i16)
+        .bind(latest_contract_l2_block)
+        .bind(l1_chain_id)
+        .bind(l2_chain_id)
         .fetch_optional(&self.pool)
         .await?;
 
@@ -399,17 +397,16 @@ impl DriverDBClient {
         l1_chain_id: i64,
         l2_chain_id: i64,
     ) -> Result<Option<OPSuccinctRequest>, Error> {
-        let request = sqlx::query_as!(
-            OPSuccinctRequest,
+        let request = sqlx::query_as::<_, OPSuccinctRequest>(
             "SELECT * FROM requests WHERE range_vkey_commitment = $1 AND rollup_config_hash = $2 AND status = $3 AND req_type = $4 AND start_block >= $5 AND l1_chain_id = $6 AND l2_chain_id = $7 ORDER BY start_block ASC LIMIT 1",
-            &commitment.range_vkey_commitment[..],
-            &commitment.rollup_config_hash[..],
-            RequestStatus::Unrequested as i16,
-            RequestType::Range as i16,
-            latest_contract_l2_block,
-            l1_chain_id,
-            l2_chain_id,
         )
+        .bind(&commitment.range_vkey_commitment[..])
+        .bind(&commitment.rollup_config_hash[..])
+        .bind(RequestStatus::Unrequested as i16)
+        .bind(RequestType::Range as i16)
+        .bind(latest_contract_l2_block)
+        .bind(l1_chain_id)
+        .bind(l2_chain_id)
         .fetch_optional(&self.pool)
         .await?;
         Ok(request)
@@ -599,18 +596,17 @@ impl DriverDBClient {
         l1_chain_id: i64,
         l2_chain_id: i64,
     ) -> Result<Option<OPSuccinctRequest>, Error> {
-        let request = sqlx::query_as!(
-            OPSuccinctRequest,
+        let request = sqlx::query_as::<_, OPSuccinctRequest>(
             "SELECT * FROM requests WHERE range_vkey_commitment = $1 AND rollup_config_hash = $2 AND aggregation_vkey_hash = $3 AND status = $4 AND req_type = $5 AND start_block = $6 AND l1_chain_id = $7 AND l2_chain_id = $8 ORDER BY start_block ASC LIMIT 1",
-            &commitment.range_vkey_commitment[..],
-            &commitment.rollup_config_hash[..],
-            &commitment.agg_vkey_hash[..],
-            RequestStatus::Complete as i16,
-            RequestType::Aggregation as i16,
-            latest_contract_l2_block,
-            l1_chain_id,
-            l2_chain_id,
         )
+        .bind(&commitment.range_vkey_commitment[..])
+        .bind(&commitment.rollup_config_hash[..])
+        .bind(&commitment.agg_vkey_hash[..])
+        .bind(RequestStatus::Complete as i16)
+        .bind(RequestType::Aggregation as i16)
+        .bind(latest_contract_l2_block)
+        .bind(l1_chain_id)
+        .bind(l2_chain_id)
         .fetch_optional(&self.pool)
         .await?;
         Ok(request)
@@ -924,6 +920,13 @@ mod tests {
                 prover_address: None,
                 l1_head_block_number: None,
                 cluster_proof_handle: None,
+                // ETHERA BEGIN: sidecar mailbox columns
+                mailbox_inbox_chains: None,
+                mailbox_outbox_chains: None,
+                mailbox_inbox_roots: None,
+                mailbox_outbox_roots: None,
+                mailbox_root: None,
+                // ETHERA END
             }
         }
     }

@@ -4,12 +4,11 @@
 use alloy_primitives::B256;
 use alloy_sol_types::sol;
 use kona_genesis::RollupConfig;
-use kona_proof::BootInfo;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
-// ABI encoding of AggregationOutputs is 6 * 32 bytes.
-pub const AGGREGATION_OUTPUTS_SIZE: usize = 6 * 32;
+// ABI encoding of AggregationOutputs is 8 * 32-byte slots.
+pub const AGGREGATION_OUTPUTS_SIZE: usize = 8 * 32;
 
 /// Hash the serialized rollup config using SHA256. Note: The rollup config is never unrolled
 /// on-chain, so switching to a different hash function is not a concern, as long as the config hash
@@ -30,23 +29,20 @@ pub fn hash_rollup_config(config: &RollupConfig) -> B256 {
 
 sol! {
     #[derive(Debug, Serialize, Deserialize)]
+    struct MailboxInfoStruct {
+        bytes32[] inbox_chains;
+        bytes32[] outbox_chains;
+        bytes32[] inbox_roots;
+        bytes32[] outbox_roots;
+    }
+
+    #[derive(Debug, Serialize, Deserialize)]
     struct BootInfoStruct {
         bytes32 l1Head;
         bytes32 l2PreRoot;
         bytes32 l2PostRoot;
         uint64 l2BlockNumber;
         bytes32 rollupConfigHash;
-    }
-}
-
-impl From<BootInfo> for BootInfoStruct {
-    fn from(boot_info: BootInfo) -> Self {
-        BootInfoStruct {
-            l1Head: boot_info.l1_head,
-            l2PreRoot: boot_info.agreed_l2_output_root,
-            l2PostRoot: boot_info.claimed_l2_output_root,
-            l2BlockNumber: boot_info.claimed_l2_block_number,
-            rollupConfigHash: hash_rollup_config(&boot_info.rollup_config),
-        }
+        bytes32 mailboxRoot;
     }
 }

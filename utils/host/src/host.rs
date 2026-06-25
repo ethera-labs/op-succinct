@@ -5,6 +5,7 @@ use hana_host::celestia::CelestiaChainHost;
 use hokulea_host_bin::cfg::SingleChainHostWithEigenDA;
 use kona_host::single::{SingleChainHost, SingleChainHostError};
 use kona_preimage::{BidirectionalChannel, Channel};
+use op_succinct_client_utils::witness::EtheraSidecarMailboxStore;
 use tokio::task::JoinHandle;
 
 use crate::{
@@ -101,11 +102,30 @@ pub trait OPSuccinctHost: Send + Sync + 'static {
         let server_task = args.start_server(hint.host, preimage.host).await?;
 
         let witness = self.witness_generator().run(preimage.client, hint.client).await?;
-        // Unlike the upstream, manually abort the server task, as it will hang if you wait for both
-        // tasks to complete.
         server_task.abort();
 
         Ok(witness)
+    }
+
+    async fn run_with_ethera_sidecar_mailbox(
+        &self,
+        args: &Self::Args,
+    ) -> Result<(
+        <Self::WitnessGenerator as WitnessGenerator>::WitnessData,
+        EtheraSidecarMailboxStore,
+    )> {
+        let preimage = BidirectionalChannel::new()?;
+        let hint = BidirectionalChannel::new()?;
+
+        let server_task = args.start_server(hint.host, preimage.host).await?;
+
+        let result = self
+            .witness_generator()
+            .run_with_ethera_sidecar_mailbox(preimage.client, hint.client)
+            .await;
+        server_task.abort();
+
+        result
     }
 
     /// Get the L1 head hash from the host args.

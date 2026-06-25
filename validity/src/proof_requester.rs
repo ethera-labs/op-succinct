@@ -4,9 +4,14 @@ use std::{
     time::{Duration, Instant},
 };
 
+use crate::{
+    db::DriverDBClient, OPSuccinctRequest, ProgramConfig, RequestExecutionStatistics,
+    RequestStatus, RequestType, ValidityGauge,
+};
 use alloy_primitives::{Address, B256};
 use alloy_provider::Provider;
-use anyhow::{Context, Result};
+use anyhow::{anyhow, Context, Result};
+use op_succinct_client_utils::witness::compute_ethera_sidecar_mailbox_root;
 use op_succinct_elfs::AGGREGATION_ELF;
 use op_succinct_host_utils::{
     fetcher::OPSuccinctDataFetcher, get_agg_proof_stdin, host::OPSuccinctHost,
@@ -18,16 +23,11 @@ use op_succinct_proof_utils::{
 };
 use sp1_sdk::{
     network::{proto::types::ExecutionStatus, FulfillmentStrategy},
-    Elf, NetworkProver, ProveRequest, Prover, SP1ProofMode, SP1ProofWithPublicValues, SP1Stdin,
-    SP1_CIRCUIT_VERSION,
+    Elf, NetworkProver, ProveRequest, Prover, SP1Proof, SP1ProofMode, SP1ProofWithPublicValues,
+    SP1Stdin, SP1_CIRCUIT_VERSION,
 };
 use tokio::sync::Mutex;
 use tracing::{info, warn};
-
-use crate::{
-    db::DriverDBClient, OPSuccinctRequest, ProgramConfig, RequestExecutionStatistics,
-    RequestStatus, RequestType, ValidityGauge,
-};
 
 pub struct OPSuccinctProofRequester<H: OPSuccinctHost> {
     pub host: Arc<H>,
@@ -175,7 +175,31 @@ impl<H: OPSuccinctHost> OPSuccinctProofRequester<H> {
                 .await?;
         }
 
-        let witness = self.host.run(&host_args).await?;
+        let (witness, mailbox_store) =
+            self.host.run_with_ethera_sidecar_mailbox(&host_args).await?;
+
+        info!(
+            request_id = request.id,
+            inbox_chain_count = mailbox_store.inbox_chains.len(),
+            outbox_chain_count = mailbox_store.outbox_chains.len(),
+            inbox_root_count = mailbox_store.inbox_roots.len(),
+            outbox_root_count = mailbox_store.outbox_roots.len(),
+            "Ethera sidecar mailbox store extracted for range request"
+        );
+
+        let mailbox_root = compute_ethera_sidecar_mailbox_root(&mailbox_store);
+        let (inbox_chains, outbox_chains, inbox_roots, outbox_roots) = mailbox_store.db_columns();
+        self.db_client
+            .update_mailbox_store(
+                request.id,
+                inbox_chains,
+                outbox_chains,
+                inbox_roots,
+                outbox_roots,
+                Some(mailbox_root.to_vec()),
+            )
+            .await?;
+
         let sp1_stdin = self.host.witness_generator().get_sp1_stdin(witness)?;
 
         Ok(sp1_stdin)
@@ -334,18 +358,28 @@ impl<H: OPSuccinctHost> OPSuccinctProofRequester<H> {
         );
 
         let start_time = Instant::now();
-        let (pv, report) = match network_prover
+        let execute = network_prover
             .execute(Elf::Static(get_range_elf_embedded()), stdin)
             .calculate_gas(true)
-            .deferred_proof_verification(false)
-            .await
-        {
-            Ok((pv, report)) => (pv, report),
-            Err(e) => {
-                ValidityGauge::ExecutionErrorCount.increment(1.0);
-                return Err(e.into());
-            }
-        };
+            .deferred_proof_verification(false);
+        let (pv, report) =
+            match tokio::time::timeout(Duration::from_secs(self.proving_timeout), execute).await {
+                Ok(Ok((pv, report))) => (pv, report),
+                Ok(Err(e)) => {
+                    ValidityGauge::ExecutionErrorCount.increment(1.0);
+                    return Err(e.into());
+                }
+                Err(_) => {
+                    ValidityGauge::ExecutionErrorCount.increment(1.0);
+                    return Err(anyhow!(
+                        "Mock range proof execution timed out after {}s for request {} ({}-{})",
+                        self.proving_timeout,
+                        request.id,
+                        request.start_block,
+                        request.end_block
+                    ));
+                }
+            };
 
         let execution_duration = start_time.elapsed().as_secs();
 
@@ -387,19 +421,37 @@ impl<H: OPSuccinctHost> OPSuccinctProofRequester<H> {
             .as_ref()
             .context("network_prover required for generate_mock_agg_proof")?;
 
+        info!(
+            request_id = request.id,
+            request_type = ?request.req_type,
+            start_block = request.start_block,
+            end_block = request.end_block,
+            "Executing mock aggregation proof"
+        );
+
         let start_time = Instant::now();
-        let (pv, report) = match network_prover
+        let execute = network_prover
             .execute(Elf::Static(AGGREGATION_ELF), stdin)
             .calculate_gas(true)
-            .deferred_proof_verification(false)
-            .await
-        {
-            Ok((pv, report)) => (pv, report),
-            Err(e) => {
-                ValidityGauge::ExecutionErrorCount.increment(1.0);
-                return Err(e.into());
-            }
-        };
+            .deferred_proof_verification(false);
+        let (pv, report) =
+            match tokio::time::timeout(Duration::from_secs(self.proving_timeout), execute).await {
+                Ok(Ok((pv, report))) => (pv, report),
+                Ok(Err(e)) => {
+                    ValidityGauge::ExecutionErrorCount.increment(1.0);
+                    return Err(e.into());
+                }
+                Err(_) => {
+                    ValidityGauge::ExecutionErrorCount.increment(1.0);
+                    return Err(anyhow!(
+                    "Mock aggregation proof execution timed out after {}s for request {} ({}-{})",
+                    self.proving_timeout,
+                    request.id,
+                    request.start_block,
+                    request.end_block
+                ));
+                }
+            };
 
         let execution_duration = start_time.elapsed().as_secs();
 
@@ -632,7 +684,13 @@ impl<H: OPSuccinctHost> OPSuccinctProofRequester<H> {
             RequestType::Aggregation => {
                 if self.mock {
                     let proof = self.generate_mock_agg_proof(&request, stdin).await?;
-                    self.db_client.update_proof_to_complete(request.id, &proof.bytes()).await?;
+                    let proof_bytes = match proof.proof {
+                        SP1Proof::Compressed(_) => bincode::serialize(&proof)?,
+                        SP1Proof::Groth16(_) | SP1Proof::Plonk(_) => proof.bytes(),
+                        SP1Proof::Core(_) => return Err(anyhow!("Core proofs are not supported.")),
+                    };
+
+                    self.db_client.update_proof_to_complete(request.id, &proof_bytes).await?;
                 } else if self.cluster {
                     let cluster_config = self
                         .cluster_config

@@ -63,7 +63,7 @@ pub struct RequesterConfig {
     pub op_succinct_config_name_hash: B256,
     pub mock: bool,
 
-    /// Whether to fallback to timestamp-based L1 head estimation even though SafeDB is not
+    /// Whether to fall back to timestamp-based L1 head estimation even though SafeDB is not
     /// activated for op-node.
     pub safe_db_fallback: bool,
 
@@ -108,6 +108,20 @@ pub struct RequesterConfig {
     /// signer behavior; raise it (e.g. 180) on networks where mempool inclusion plus the
     /// configured confirmation depth needs more headroom.
     pub tx_confirmation_timeout: u64,
+
+    // ETHERA BEGIN: sidecar proof-flow config (min block, aggregation toggles, shared publisher)
+    /// Minimum L2 block number to consider when creating or requesting proofs.
+    pub min_l2_block: u64,
+
+    /// Whether aggregation proof creation and submission are enabled.
+    pub enable_aggregation: bool,
+
+    /// Restrict the process to one range proof and one aggregation proof request.
+    pub single_shot: bool,
+
+    /// Shared publisher endpoint for off-chain aggregation submission.
+    pub publisher_url: Option<reqwest::Url>,
+    // ETHERA END
 }
 
 impl RequesterConfig {
@@ -141,6 +155,12 @@ impl RequesterConfig {
             min_auction_period = self.min_auction_period,
             auction_timeout = self.auction_timeout,
             tx_confirmation_timeout = self.tx_confirmation_timeout,
+            // ETHERA BEGIN: sidecar proof-flow config fields
+            min_l2_block = self.min_l2_block,
+            enable_aggregation = self.enable_aggregation,
+            single_shot = self.single_shot,
+            publisher_url = ?self.publisher_url,
+            // ETHERA END
             "Validity proposer configuration loaded"
         );
     }

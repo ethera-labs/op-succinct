@@ -17,7 +17,7 @@ use kona_proof::l1::OracleBlobProvider;
 use op_succinct_client_utils::witness::{
     executor::{get_inputs_for_pipeline, WitnessExecutor as WitnessExecutorTrait},
     preimage_store::PreimageStore,
-    BlobData, EigenDAWitnessData,
+    BlobData, EigenDAWitnessData, EtheraSidecarMailboxStore,
 };
 use op_succinct_eigenda_client_utils::executor::EigenDAWitnessExecutor;
 use op_succinct_host_utils::witness_generation::{
@@ -188,6 +188,7 @@ impl WitnessGenerator for EigenDAWitnessGenerator {
         let witness = EigenDAWitnessData {
             preimage_store: preimage_witness_store.lock().unwrap().clone(),
             blob_data: blob_data.lock().unwrap().clone(),
+            ethera_sidecar_mailbox: EtheraSidecarMailboxStore::default(),
             eigenda_data: Some(eigenda_witness_bytes),
         };
 

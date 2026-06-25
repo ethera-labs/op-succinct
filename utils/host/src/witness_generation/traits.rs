@@ -11,11 +11,14 @@ use kona_proof::{
 use op_succinct_client_utils::witness::{
     executor::{get_inputs_for_pipeline, WitnessExecutor},
     preimage_store::PreimageStore,
-    BlobData, WitnessData,
+    BlobData, EtheraSidecarMailboxStore, WitnessData,
 };
 use sp1_sdk::SP1Stdin;
+use tracing::{info, warn};
 
-use crate::witness_generation::{OnlineBlobStore, PreimageWitnessCollector};
+use crate::witness_generation::{
+    ethera_sidecar::EtheraSidecarMailboxSource, OnlineBlobStore, PreimageWitnessCollector,
+};
 
 pub type DefaultOracleBase = CachingOracle<OracleReader<NativeChannel>, HintWriter<NativeChannel>>;
 
@@ -37,6 +40,15 @@ pub trait WitnessGenerator {
         preimage_chan: NativeChannel,
         hint_chan: NativeChannel,
     ) -> Result<Self::WitnessData> {
+        let (witness, _) = self.run_with_ethera_sidecar_mailbox(preimage_chan, hint_chan).await?;
+        Ok(witness)
+    }
+
+    async fn run_with_ethera_sidecar_mailbox(
+        &self,
+        preimage_chan: NativeChannel,
+        hint_chan: NativeChannel,
+    ) -> Result<(Self::WitnessData, EtheraSidecarMailboxStore)> {
         let preimage_witness_store = Arc::new(Mutex::new(PreimageStore::default()));
         let blob_data = Arc::new(Mutex::new(BlobData::default()));
 
@@ -70,15 +82,41 @@ pub trait WitnessGenerator {
                 )
                 .await
                 .unwrap();
-            self.get_executor().run(boot_info, pipeline, cursor, l2_provider).await?;
+            self.get_executor().run(boot_info.clone(), pipeline, cursor, l2_provider).await?;
         }
+
+        let mailbox_store = match EtheraSidecarMailboxSource::from_env()? {
+            Some(source) => match source.load(boot_info.claimed_l2_block_number).await {
+                Ok(store) => {
+                    info!(
+                        block_number = boot_info.claimed_l2_block_number,
+                        inbox_chain_count = store.inbox_chains.len(),
+                        outbox_chain_count = store.outbox_chains.len(),
+                        inbox_root_count = store.inbox_roots.len(),
+                        outbox_root_count = store.outbox_roots.len(),
+                        "Loaded Ethera sidecar mailbox store"
+                    );
+                    store
+                }
+                Err(error) => {
+                    warn!(
+                        block_number = boot_info.claimed_l2_block_number,
+                        %error,
+                        "Failed to load Ethera sidecar mailbox store"
+                    );
+                    EtheraSidecarMailboxStore::default()
+                }
+            },
+            None => EtheraSidecarMailboxStore::default(),
+        };
 
         let witness = Self::WitnessData::from_parts(
             preimage_witness_store.lock().unwrap().clone(),
             blob_data.lock().unwrap().clone(),
+            mailbox_store.clone(),
         );
 
-        Ok(witness)
+        Ok((witness, mailbox_store))
     }
 
     fn get_sp1_stdin(&self, witness: Self::WitnessData) -> Result<SP1Stdin>;
