@@ -1032,7 +1032,8 @@ impl OPSuccinctDataFetcher {
             server: true,
             rollup_config_path: self.rollup_config_path.clone(),
             l1_config_path: self.l1_config_path.clone(),
-            enable_experimental_witness_endpoint: false,
+            // FIXME: Make this configurable once the op-reth witness path is stable.
+            enable_experimental_witness_endpoint: true,
         })
     }
 }
