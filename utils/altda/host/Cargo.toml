@@ -18,7 +18,6 @@ kona-proof.workspace = true
 # alloy
 alloy-eips.workspace = true
 alloy-primitives.workspace = true
-alloy-provider.workspace = true
 
 # general
 anyhow.workspace = true

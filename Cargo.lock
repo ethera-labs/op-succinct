@@ -7473,7 +7473,6 @@ version = "4.4.0"
 dependencies = [
  "alloy-eips",
  "alloy-primitives",
- "alloy-provider",
  "anyhow",
  "async-trait",
  "clap",
