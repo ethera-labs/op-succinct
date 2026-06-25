@@ -3,15 +3,14 @@
 //! Routes standard kona hints to [`SingleChainHintHandler`] and handles `altda-commitment`
 //! hints by fetching batch data from the DA server and storing it in the preimage oracle.
 
-use alloy_primitives::{hex, keccak256, Bytes, B256};
-use alloy_provider::Provider;
+use alloy_primitives::hex;
 use anyhow::{bail, ensure, Result};
 use async_trait::async_trait;
 use kona_host::{
     single::SingleChainHintHandler, HintHandler, OnlineHostBackendCfg, SharedKeyValueStore,
 };
 use kona_preimage::PreimageKey;
-use kona_proof::{Hint, HintType};
+use kona_proof::Hint;
 use op_succinct_altda_client_utils::data_source::{
     GENERIC_COMMITMENT_TYPE, KECCAK256_COMMITMENT_TYPE,
 };
@@ -40,10 +39,6 @@ impl HintHandler for AltDAHintHandler {
     ) -> Result<()> {
         match hint.ty {
             AltDAExtendedHintType::Standard(ty) => {
-                if ty == HintType::L2Code {
-                    return fetch_l2_code(&hint.data, providers, kv).await;
-                }
-
                 let inner_hint = Hint { ty, data: hint.data };
                 SingleChainHintHandler::fetch_hint(
                     inner_hint,
@@ -58,37 +53,6 @@ impl HintHandler for AltDAHintHandler {
             }
         }
     }
-}
-
-async fn fetch_l2_code(
-    data: &[u8],
-    providers: &AltDAChainProviders,
-    kv: SharedKeyValueStore,
-) -> Result<()> {
-    const CODE_PREFIX: u8 = b'c';
-
-    ensure!(data.len() == 32, "Invalid hint data length");
-
-    let hash = B256::from_slice(data);
-
-    let code = if hash == keccak256([]) {
-        Bytes::new()
-    } else {
-        let code_key = [&[CODE_PREFIX], hash.as_slice()].concat();
-        let params = [Bytes::from(code_key)];
-        providers
-            .inner_providers
-            .l2
-            .client()
-            .request::<&[Bytes; 1], Option<Bytes>>("debug_dbGet", &params)
-            .await?
-            .ok_or_else(|| anyhow::anyhow!("L2 code not found for hash {hash}"))?
-    };
-
-    let mut kv_lock = kv.write().await;
-    kv_lock.set(PreimageKey::new_keccak256(*hash).into(), code.into())?;
-
-    Ok(())
 }
 
 /// Fetches batch data from the DA server for an AltDA commitment hint.

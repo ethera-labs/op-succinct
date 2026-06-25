@@ -106,10 +106,7 @@ impl AltDAChainHost {
         } else {
             let providers = self.create_providers().await?;
             let backend =
-                OnlineHostBackend::new(self.clone(), kv_store.clone(), providers, AltDAHintHandler)
-                    .with_proactive_hint(AltDAExtendedHintType::Standard(
-                        HintType::L2PayloadWitness,
-                    ));
+                OnlineHostBackend::new(self.clone(), kv_store.clone(), providers, AltDAHintHandler);
 
             task::spawn(async {
                 PreimageServer::new(
