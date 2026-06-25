@@ -39,10 +39,12 @@ pub struct EnvironmentConfig {
     pub min_auction_period: u64,
     pub auction_timeout: u64,
     pub tx_confirmation_timeout: u64,
+    // ETHERA BEGIN: sidecar proof-flow env (min block, aggregation toggles, shared publisher)
     pub min_l2_block: u64,
     pub enable_aggregation: bool,
     pub single_shot: bool,
     pub publisher_url: Option<Url>,
+    // ETHERA END
 }
 
 /// Helper function to get environment variables with a default value and parse them.
@@ -146,10 +148,12 @@ pub async fn read_proposer_env() -> Result<EnvironmentConfig> {
         min_auction_period: get_env_var("MIN_AUCTION_PERIOD", Some(1))?,
         auction_timeout: get_env_var("AUCTION_TIMEOUT", Some(60))?, // 1 minute
         tx_confirmation_timeout: get_env_var("TX_CONFIRMATION_TIMEOUT", Some(60))?,
+        // ETHERA BEGIN: sidecar proof-flow env (min block, aggregation toggles, shared publisher)
         min_l2_block: get_env_var("MIN_L2_BLOCK", Some(0))?,
         enable_aggregation: get_env_var("ENABLE_AGGREGATION", Some(true))?,
         single_shot: get_env_var("SINGLE_SHOT", Some(false))?,
         publisher_url: env::var("SHARED_PUBLISHER_URL").ok().map(|s| Url::parse(&s)).transpose()?,
+        // ETHERA END
     };
 
     Ok(config)

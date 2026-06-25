@@ -54,6 +54,7 @@ pub trait WitnessData: Sized + Send {
 pub struct DefaultWitnessData {
     pub preimage_store: PreimageStore,
     pub blob_data: BlobData,
+    // ETHERA: sidecar mailbox witness; changes the rkyv layout, so range ELFs must be rebuilt
     pub ethera_sidecar_mailbox: EtheraSidecarMailboxStore,
 }
 

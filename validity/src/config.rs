@@ -109,6 +109,7 @@ pub struct RequesterConfig {
     /// configured confirmation depth needs more headroom.
     pub tx_confirmation_timeout: u64,
 
+    // ETHERA BEGIN: sidecar proof-flow config (min block, aggregation toggles, shared publisher)
     /// Minimum L2 block number to consider when creating or requesting proofs.
     pub min_l2_block: u64,
 
@@ -120,6 +121,7 @@ pub struct RequesterConfig {
 
     /// Shared publisher endpoint for off-chain aggregation submission.
     pub publisher_url: Option<reqwest::Url>,
+    // ETHERA END
 }
 
 impl RequesterConfig {
@@ -153,10 +155,12 @@ impl RequesterConfig {
             min_auction_period = self.min_auction_period,
             auction_timeout = self.auction_timeout,
             tx_confirmation_timeout = self.tx_confirmation_timeout,
+            // ETHERA BEGIN: sidecar proof-flow config fields
             min_l2_block = self.min_l2_block,
             enable_aggregation = self.enable_aggregation,
             single_shot = self.single_shot,
             publisher_url = ?self.publisher_url,
+            // ETHERA END
             "Validity proposer configuration loaded"
         );
     }

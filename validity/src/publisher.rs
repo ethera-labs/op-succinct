@@ -1,3 +1,5 @@
+//! ETHERA: submit aggregation proofs to the shared publisher service (off-chain settlement path).
+
 use alloy_primitives::{Address, B256};
 use anyhow::Result;
 use op_succinct_client_utils::types::AggregationOutputs;

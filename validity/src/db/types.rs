@@ -111,11 +111,13 @@ pub struct OPSuccinctRequest {
     /// Contains {"proof_id": "...", "proof_output_id": "..."} for handle reconstruction.
     /// NULL for network mode requests (which use `proof_request_id` BYTEA for B256 instead).
     pub cluster_proof_handle: Option<Value>,
+    // ETHERA BEGIN: sidecar mailbox commitment columns
     pub mailbox_inbox_chains: Option<Vec<Vec<u8>>>,
     pub mailbox_outbox_chains: Option<Vec<Vec<u8>>>,
     pub mailbox_inbox_roots: Option<Vec<Vec<u8>>>,
     pub mailbox_outbox_roots: Option<Vec<Vec<u8>>>,
     pub mailbox_root: Option<Vec<u8>>,
+    // ETHERA END
 }
 
 impl OPSuccinctRequest {
