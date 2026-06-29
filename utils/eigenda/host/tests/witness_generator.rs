@@ -1,6 +1,6 @@
 use hokulea_proof::eigenda_witness::EigenDAWitness;
 use op_succinct_client_utils::witness::{
-    preimage_store::PreimageStore, BlobData, EigenDAWitnessData,
+    preimage_store::PreimageStore, BlobData, EigenDAWitnessData, EtheraSidecarMailboxStore,
 };
 use op_succinct_eigenda_host_utils::witness_generator::EigenDAWitnessGenerator;
 use op_succinct_host_utils::witness_generation::WitnessGenerator;
@@ -9,6 +9,7 @@ fn default_witness() -> EigenDAWitnessData {
     EigenDAWitnessData {
         preimage_store: PreimageStore::default(),
         blob_data: BlobData::default(),
+        ethera_sidecar_mailbox: EtheraSidecarMailboxStore::default(),
         eigenda_data: None,
     }
 }
@@ -25,6 +26,7 @@ fn test_get_sp1_stdin_rejects_malformed_eigenda_data() {
     let witness = EigenDAWitnessData {
         preimage_store: PreimageStore::default(),
         blob_data: BlobData::default(),
+        ethera_sidecar_mailbox: EtheraSidecarMailboxStore::default(),
         eigenda_data: Some(vec![0xFF, 0xFF, 0xFF, 0xFF]), // Malformed data
     };
 
@@ -46,6 +48,7 @@ fn test_get_sp1_stdin_with_eigenda_data_but_no_canoe_proof() {
     let witness = EigenDAWitnessData {
         preimage_store: PreimageStore::default(),
         blob_data: BlobData::default(),
+        ethera_sidecar_mailbox: EtheraSidecarMailboxStore::default(),
         eigenda_data: Some(eigenda_data),
     };
 
@@ -70,6 +73,7 @@ fn test_get_sp1_stdin_rejects_invalid_canoe_proof_bytes() {
     let witness = EigenDAWitnessData {
         preimage_store: PreimageStore::default(),
         blob_data: BlobData::default(),
+        ethera_sidecar_mailbox: EtheraSidecarMailboxStore::default(),
         eigenda_data: Some(eigenda_data),
     };
 

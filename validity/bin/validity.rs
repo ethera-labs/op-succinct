@@ -100,6 +100,10 @@ async fn main() -> Result<()> {
         min_auction_period: env_config.min_auction_period,
         auction_timeout: env_config.auction_timeout,
         tx_confirmation_timeout: env_config.tx_confirmation_timeout,
+        min_l2_block: env_config.min_l2_block,
+        enable_aggregation: env_config.enable_aggregation,
+        single_shot: env_config.single_shot,
+        publisher_url: env_config.publisher_url,
     };
     proposer_config.log();
 
